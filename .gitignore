@@ -6,3 +6,4 @@ __pycache__/
 *.spec.bak
 cert.pfx
 ffmpeg/
+*.zip
