@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+import customtkinter as ctk
 import threading
 import traceback
 import re
@@ -41,90 +42,157 @@ class MediaDownloader:
             root.destroy()
             return
 
-        self.root.title("音视频下载器 beta V1.0.1")
-        self.root.geometry("650x480")
+        self.root.title("Media Downloader V1.0")
+        self.root.geometry("760x620")
         self.root.resizable(True, True)
-        self.root.minsize(500, 400)
+        self.root.minsize(600, 520)
 
-        style = ttk.Style()
-        style.theme_use("clam")
+        ctk.set_appearance_mode("light")
+        ctk.set_default_color_theme("blue")
 
-        main = ttk.Frame(root, padding=20)
+        # --- Warm natural palette ---
+        BG       = "#FBF7F2"   # warm cream
+        CARD     = "#FFFFFF"
+        ACCENT   = "#F59E0B"   # warm amber
+        A_HOVER  = "#E8900A"
+        BLUE_SOFT = "#8BAABB"  # muted lake blue
+        BLUE_PALE = "#DCE8EC"  # pale sky
+        TEXT     = "#3D3628"   # warm dark brown
+        SUBTLE   = "#7A6E5C"
+        MUTED    = "#A49882"
+        RED      = "#E0554A"
+        LOG_BG   = "#1A2744"
+        LOG_FG   = "#B4C6E0"
+        SEP      = "#EDE8E0"
+
+        root.configure(bg=BG)
+
+        FT  = ("Microsoft YaHei UI", 12)
+        FT_S = ("Microsoft YaHei UI", 11)
+        FT_XS = ("Microsoft YaHei UI", 10)
+        FT_H1 = ("Microsoft YaHei UI", 22, "bold")
+        FT_H2 = ("Microsoft YaHei UI", 14, "bold")
+        FT_MONO = ("Cascadia Code", 10)
+
+        # --- main (tk, not ctk - avoids unnecessary custom drawing) ---
+        main = tk.Frame(root, bg=BG)
         main.pack(fill="both", expand=True)
 
-        # URL
-        ttk.Label(main, text="粘贴视频/音频链接").pack(anchor="w")
-        url_frame = ttk.Frame(main)
-        url_frame.pack(fill="x", pady=(4, 12))
+        # --- header (tk) ---
+        hero = tk.Frame(main, bg=BG)
+        hero.pack(fill="x", padx=24, pady=(28, 20))
+        tk.Label(hero, text="Media Downloader", bg=BG, fg=TEXT,
+                 font=FT_H1).pack(anchor="w")
+        tk.Label(hero, text="让下载更简单", bg=BG, fg=MUTED,
+                 font=FT_XS).pack(anchor="w", pady=(4, 0))
+
+        # --- card 1: link ---
+        c1 = tk.Frame(main, bg=CARD, highlightbackground="#E8E3DA",
+                      highlightthickness=1)
+        c1.pack(fill="x", padx=24)
+
+        tk.Label(c1, text="链接", bg=CARD, fg=TEXT, font=FT_H2).pack(anchor="w", padx=18, pady=(16, 0))
+        tk.Frame(c1, bg=SEP, height=1).pack(fill="x", padx=18, pady=(8, 0))
+
+        url_row = tk.Frame(c1, bg=CARD)
+        url_row.pack(fill="x", padx=18, pady=(12, 0))
         self.url_var = tk.StringVar()
-        self.url_entry = ttk.Entry(url_frame, textvariable=self.url_var)
+        self.url_entry = ctk.CTkEntry(url_row, textvariable=self.url_var, font=FT,
+                                      fg_color="#F9F7F2", text_color=TEXT,
+                                      border_color="#E5E0D8", corner_radius=10, height=38)
         self.url_entry.pack(side="left", fill="x", expand=True)
-        ttk.Button(url_frame, text="粘贴", command=self.paste_url).pack(side="left", padx=(6, 0))
+        self.url_entry.bind("<Control-v>", lambda e: self.url_entry.event_generate("<<Paste>>"))
+        ctk.CTkButton(url_row, text="粘贴", font=FT_S, fg_color="#F5F0E8",
+                      text_color=SUBTLE, hover_color="#EDE6D8", corner_radius=10,
+                      height=38, width=56, command=self.paste_url).pack(side="left", padx=(8, 0))
 
-        # Output dir
-        ttk.Label(main, text="保存目录").pack(anchor="w")
-        dir_frame = ttk.Frame(main)
-        dir_frame.pack(fill="x", pady=(4, 6))
+        dir_row = tk.Frame(c1, bg=CARD)
+        dir_row.pack(fill="x", padx=18, pady=(8, 16))
+        tk.Label(dir_row, text="保存至", bg=CARD, fg=SUBTLE, font=FT_S).pack(side="left", padx=(0, 8))
         self.dir_var = tk.StringVar(value=os.path.join(os.path.expanduser("~"), "Downloads"))
-        self.dir_entry = ttk.Entry(dir_frame, textvariable=self.dir_var)
+        self.dir_entry = ctk.CTkEntry(dir_row, textvariable=self.dir_var, font=FT_S,
+                                      fg_color="#F9F7F2", text_color=TEXT,
+                                      border_color="#E5E0D8", corner_radius=10, height=32)
         self.dir_entry.pack(side="left", fill="x", expand=True)
-        ttk.Button(dir_frame, text="浏览", command=self.browse_dir).pack(side="left", padx=(6, 0))
+        ctk.CTkButton(dir_row, text="浏览", font=FT_S, fg_color="#F5F0E8",
+                      text_color=SUBTLE, hover_color="#EDE6D8", corner_radius=10,
+                      height=32, width=56, command=self.browse_dir).pack(side="left", padx=(8, 0))
 
-        # Options row
-        opts_frame = ttk.Frame(main)
-        opts_frame.pack(fill="x", pady=(0, 6))
+        # --- card 2: options ---
+        c2 = tk.Frame(main, bg=CARD, highlightbackground="#E8E3DA",
+                      highlightthickness=1)
+        c2.pack(fill="x", padx=24, pady=(14, 0))
 
-        self.cookie_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(opts_frame, text="使用浏览器 Cookie（抖音等需要登录的平台请勾选）",
-                       variable=self.cookie_var).pack(side="left")
+        tk.Label(c2, text="选项", bg=CARD, fg=TEXT, font=FT_H2).pack(anchor="w", padx=18, pady=(16, 0))
+        tk.Frame(c2, bg=SEP, height=1).pack(fill="x", padx=18, pady=(8, 0))
+
+        opt_top = tk.Frame(c2, bg=CARD)
+        opt_top.pack(fill="x", padx=18, pady=(12, 22))
+        self.cookie_var = tk.BooleanVar(value=True)
+        ctk.CTkCheckBox(opt_top, text="使用浏览器 Cookie 下载（推荐）",
+                        variable=self.cookie_var, font=FT,
+                        text_color=TEXT, fg_color=BLUE_SOFT,
+                        hover_color="#7B9BAB", checkmark_color="white",
+                        corner_radius=4).pack(side="left")
+        self.audio_only_var = tk.BooleanVar(value=False)
+        ctk.CTkCheckBox(opt_top, text="仅下载音频", variable=self.audio_only_var,
+                        font=FT, text_color=TEXT, fg_color=BLUE_SOFT,
+                        hover_color="#7B9BAB", checkmark_color="white",
+                        corner_radius=4).pack(side="right")
 
         self.browser_var = tk.StringVar(value="edge")
-        ttk.Radiobutton(opts_frame, text="Edge", variable=self.browser_var,
-                        value="edge").pack(side="left", padx=(12, 0))
-        ttk.Radiobutton(opts_frame, text="Chrome", variable=self.browser_var,
-                        value="chrome").pack(side="left", padx=(4, 0))
-        ttk.Radiobutton(opts_frame, text="Firefox", variable=self.browser_var,
-                        value="firefox").pack(side="left", padx=(4, 0))
 
-        self.audio_only_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(opts_frame, text="仅音频", variable=self.audio_only_var).pack(side="right")
+        # --- controls (tk) ---
+        ctrl = tk.Frame(main, bg=BG)
+        ctrl.pack(fill="x", padx=24, pady=(20, 0))
 
-        # Info
-        self.info_var = tk.StringVar()
-        ttk.Label(main, textvariable=self.info_var, foreground="gray").pack(anchor="w", pady=(0, 8))
-
-        # Buttons
-        btn_frame = ttk.Frame(main)
-        btn_frame.pack(fill="x", pady=(0, 8))
-        self.dl_btn = ttk.Button(btn_frame, text="开始下载", command=self.start_download)
+        self.dl_btn = ctk.CTkButton(ctrl, text="开始下载", font=FT_H2,
+                                    fg_color=ACCENT, hover_color=A_HOVER,
+                                    text_color="white", corner_radius=12,
+                                    height=42, width=130, command=self.start_download)
         self.dl_btn.pack(side="left")
-        self.cancel_btn = ttk.Button(btn_frame, text="取消", command=self.cancel_download, state="disabled")
-        self.cancel_btn.pack(side="left", padx=(8, 0))
-        ttk.Button(btn_frame, text="打开保存目录", command=self.open_dir).pack(side="right")
-        ttk.Button(btn_frame, text="免责声明", command=self.show_disclaimer).pack(side="right", padx=(0, 8))
+        self.cancel_btn = ctk.CTkButton(ctrl, text="取消", font=FT_S,
+                                        fg_color="transparent", text_color=RED,
+                                        hover_color="#FBEBE9", corner_radius=12,
+                                        height=42, width=72,
+                                        command=self.cancel_download, state="disabled")
+        self.cancel_btn.pack(side="left", padx=(10, 0))
 
-        # Progress
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(main, variable=self.progress_var, maximum=100)
-        self.progress_bar.pack(fill="x", pady=(0, 6))
+        self.info_var = tk.StringVar()
+        tk.Label(ctrl, textvariable=self.info_var, bg=BG, fg=MUTED,
+                 font=FT_XS).pack(side="left", padx=(16, 0))
 
-        # Log
-        log_frame = ttk.Frame(main)
-        log_frame.pack(fill="both", expand=True)
-        self.log_text = tk.Text(log_frame, height=8, wrap="word", state="disabled",
-                                font=("Microsoft YaHei UI", 9))
-        scrollbar = ttk.Scrollbar(log_frame, orient="vertical", command=self.log_text.yview)
-        self.log_text.configure(yscrollcommand=scrollbar.set)
-        self.log_text.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        ctk.CTkButton(ctrl, text="打开目录", font=FT_XS, fg_color="transparent",
+                      text_color=MUTED, hover_color="#F5F0E8", corner_radius=8,
+                      height=30, command=self.open_dir).pack(side="right")
+        ctk.CTkButton(ctrl, text="免责声明", font=FT_XS, fg_color="transparent",
+                      text_color=MUTED, hover_color="#F5F0E8", corner_radius=8,
+                      height=30, command=self.show_disclaimer).pack(side="right", padx=(0, 4))
 
+        # --- progress (CTkProgressBar) ---
+        self.progress_bar = ctk.CTkProgressBar(main, fg_color="#EBE6DD",
+                                               progress_color=ACCENT,
+                                               corner_radius=3, height=5)
+        self.progress_bar.pack(fill="x", padx=24, pady=(16, 0))
+        self.progress_bar.set(0)
+
+        # --- log ---
+        log_shell = tk.Frame(main, bg=LOG_BG)
+        log_shell.pack(fill="both", expand=True, padx=24, pady=(14, 18))
+        tk.Label(log_shell, text="  日志", bg=LOG_BG, fg="#6B7DA8",
+                 font=FT_XS, anchor="w").pack(fill="x", padx=10, pady=(6, 2))
+        tk.Frame(log_shell, bg="#243358", height=1).pack(fill="x", padx=10)
+        self.log_text = tk.Text(log_shell, font=FT_MONO, bg=LOG_BG, fg=LOG_FG,
+                                insertbackground=LOG_FG, relief="flat", borderwidth=0,
+                                padx=10, pady=6, wrap="word", state="disabled")
+        self.log_text.pack(fill="both", expand=True, padx=8, pady=(2, 6))
+
+        # --- init ---
         self.is_downloading = False
         self._cancel_flag = False
         self._cookie_tmp_file = None
         self._result_title = ""
         self._result_resolution = ""
-
-        self.url_entry.bind("<Control-v>", lambda e: self.url_entry.event_generate("<<Paste>>"))
 
     def _get_flag_path(self):
         if getattr(sys, 'frozen', False):
@@ -135,8 +203,39 @@ class MediaDownloader:
         flag = self._get_flag_path()
         if os.path.exists(flag):
             return True
-        result = messagebox.askokcancel("免责声明", self.DISCLAIMER)
-        if result:
+        # Show dialog directly on main thread — do NOT use threading.Event here
+        result = [False]
+        dlg = tk.Toplevel(self.root)
+        dlg.title("免责声明")
+        dlg.transient(self.root)
+        dlg.grab_set()
+        dlg.resizable(False, False)
+        dlg.configure(bg="#FBF7F2")
+        f = tk.Frame(dlg, bg="#FBF7F2", padx=22, pady=22)
+        f.pack()
+        tk.Label(f, text="免责声明", bg="#FBF7F2", fg="#3D3628",
+                 font=("Microsoft YaHei UI", 14, "bold")).pack(anchor="w")
+        tk.Label(f, text=self.DISCLAIMER, bg="#FBF7F2", fg="#5C5042",
+                 font=("Microsoft YaHei UI", 10), justify="left",
+                 wraplength=400).pack(anchor="w", pady=(10, 16))
+        btns = tk.Frame(f, bg="#FBF7F2")
+        btns.pack()
+        ctk.CTkButton(btns, text="同意", font=("Microsoft YaHei UI", 11),
+                      fg_color="#F59E0B", hover_color="#E8900A",
+                      corner_radius=8, height=34, width=90,
+                      command=lambda: [result.__setitem__(0, True), dlg.destroy()]
+                      ).pack(side="left", padx=(0, 8))
+        ctk.CTkButton(btns, text="拒绝", font=("Microsoft YaHei UI", 11),
+                      fg_color="transparent", text_color="#7A6E5C",
+                      hover_color="#F5F0E8", corner_radius=8, height=34,
+                      command=dlg.destroy).pack(side="left")
+        dlg.update_idletasks()
+        dw, dh = dlg.winfo_width(), dlg.winfo_height()
+        px = self.root.winfo_x() + (self.root.winfo_width() - dw) // 2
+        py = self.root.winfo_y() + (self.root.winfo_height() - dh) // 2
+        dlg.geometry(f"+{px}+{py}")
+        dlg.wait_window()
+        if result[0]:
             try:
                 with open(flag, "w") as f:
                     f.write("accepted")
@@ -146,7 +245,61 @@ class MediaDownloader:
         return False
 
     def show_disclaimer(self):
-        messagebox.showinfo("免责声明", self.DISCLAIMER)
+        self._show_styled_dialog("免责声明", self.DISCLAIMER, confirm="我知道了")
+
+    def _show_styled_dialog(self, title, message, confirm="确定", cancel=None):
+        """Show a styled dialog matching the app's warm theme.
+        Returns True if confirm clicked, False if cancel/window closed.
+        Safe to call from any thread."""
+        result = [False]
+        is_main = (threading.current_thread() is threading.main_thread())
+
+        def show():
+            dlg = tk.Toplevel(self.root)
+            dlg.title(title)
+            dlg.transient(self.root)
+            dlg.grab_set()
+            dlg.resizable(False, False)
+            dlg.configure(bg="#FBF7F2")
+
+            f = tk.Frame(dlg, bg="#FBF7F2", padx=22, pady=22)
+            f.pack()
+
+            tk.Label(f, text=title, bg="#FBF7F2", fg="#3D3628",
+                     font=("Microsoft YaHei UI", 14, "bold")).pack(anchor="w")
+            tk.Label(f, text=message, bg="#FBF7F2", fg="#5C5042",
+                     font=("Microsoft YaHei UI", 10), justify="left",
+                     wraplength=400).pack(anchor="w", pady=(10, 16))
+
+            btns = tk.Frame(f, bg="#FBF7F2")
+            btns.pack()
+            ctk.CTkButton(btns, text=confirm, font=("Microsoft YaHei UI", 11),
+                          fg_color="#F59E0B", hover_color="#E8900A",
+                          corner_radius=8, height=34, width=90,
+                          command=lambda: [result.__setitem__(0, True), dlg.destroy()]
+                          ).pack(side="left", padx=(0, 8))
+            if cancel:
+                ctk.CTkButton(btns, text=cancel, font=("Microsoft YaHei UI", 11),
+                              fg_color="transparent", text_color="#7A6E5C",
+                              hover_color="#F5F0E8", corner_radius=8, height=34,
+                              command=dlg.destroy).pack(side="left")
+
+            dlg.update_idletasks()
+            dw, dh = dlg.winfo_width(), dlg.winfo_height()
+            px = self.root.winfo_x() + (self.root.winfo_width() - dw) // 2
+            py = self.root.winfo_y() + (self.root.winfo_height() - dh) // 2
+            dlg.geometry(f"+{px}+{py}")
+            dlg.wait_window()
+            if not is_main:
+                event.set()
+
+        if is_main:
+            show()
+        else:
+            event = threading.Event()
+            self.root.after(0, show)
+            event.wait()
+        return result[0]
 
     def _extract_url(self, text):
         """从分享口令等混合文本中提取 URL"""
@@ -202,9 +355,9 @@ class MediaDownloader:
 
         self.is_downloading = True
         self._cancel_flag = False
-        self.dl_btn.configure(state="disabled")
+        self.dl_btn.configure(text="正在下载...", state="disabled")
         self.cancel_btn.configure(state="normal")
-        self.progress_var.set(0)
+        self.progress_bar.set(0)
         self.info_var.set("")
         self._clear_log()
 
@@ -225,14 +378,19 @@ class MediaDownloader:
             downloaded = d.get("downloaded_bytes", 0)
             if total > 0:
                 pct = downloaded / total * 100
-                self.progress_var.set(pct)
+                self.progress_bar.set(pct / 100.0)
+                self.root.after(0, lambda p=pct: self.dl_btn.configure(text=f"下载中 {p:.0f}%"))
             speed = d.get("speed")
             speed_str = self._fmt_speed(speed) if speed else "N/A"
-            self.info_var.set(f"下载中... {speed_str}")
+            size_str = f"{self._fmt_size(downloaded)}"
+            if total > 0:
+                size_str += f" / {self._fmt_size(total)}"
+            self.info_var.set(f"下载中... {size_str} · {speed_str}")
 
         elif d["status"] == "finished":
-            self.progress_var.set(100)
+            self.progress_bar.set(1)
             self.info_var.set("处理完成，正在封装...")
+            self.root.after(0, lambda: self.dl_btn.configure(text="封装中..."))
 
     def _fmt_speed(self, speed):
         if speed is None:
@@ -243,6 +401,18 @@ class MediaDownloader:
             return f"{speed / 1024:.1f} KB/s"
         else:
             return f"{speed / (1024 * 1024):.1f} MB/s"
+
+    def _fmt_size(self, size):
+        if size is None:
+            return "?"
+        if size < 1024:
+            return f"{size} B"
+        elif size < 1024 * 1024:
+            return f"{size / 1024:.1f} KB"
+        elif size < 1024 * 1024 * 1024:
+            return f"{size / (1024 * 1024):.1f} MB"
+        else:
+            return f"{size / (1024 * 1024 * 1024):.2f} GB"
 
     def _get_quality_options(self, formats, has_ffmpeg, audio_only):
         """Parse formats into (label, format_selector) tuples for user selection."""
@@ -340,17 +510,20 @@ class MediaDownloader:
             dialog.transient(self.root)
             dialog.grab_set()
             dialog.resizable(False, False)
+            dialog.configure(bg="#FBF7F2")
 
-            main = ttk.Frame(dialog, padding=20)
+            main = tk.Frame(dialog, bg="#FBF7F2", padx=22, pady=22)
             main.pack(fill="both", expand=True)
 
-            ttk.Label(main, text=label_text,
-                      font=("Microsoft YaHei UI", 10, "bold")).pack(anchor="w", pady=(0, 12))
+            tk.Label(main, text=label_text, bg="#FBF7F2", fg="#3D3628",
+                     font=("Microsoft YaHei UI", 12, "bold")).pack(anchor="w", pady=(0, 12))
 
             var = tk.StringVar(value=options[0][0])
 
+            rb_frame = tk.Frame(main, bg="#FBF7F2")
+            rb_frame.pack(fill="x")
             for label, _ in options:
-                ttk.Radiobutton(main, text=label, variable=var, value=label).pack(anchor="w", pady=3)
+                ttk.Radiobutton(rb_frame, text=label, variable=var, value=label).pack(anchor="w", pady=3)
 
             def on_ok():
                 selected = var.get()
@@ -373,10 +546,16 @@ class MediaDownloader:
 
             dialog.protocol("WM_DELETE_WINDOW", on_cancel)
 
-            btn_frame = ttk.Frame(main)
-            btn_frame.pack(pady=(16, 0))
-            ttk.Button(btn_frame, text="确定", command=on_ok).pack(side="left", padx=(0, 8))
-            ttk.Button(btn_frame, text="取消", command=on_cancel).pack(side="left")
+            btn_frame = tk.Frame(main, bg="#FBF7F2")
+            btn_frame.pack(pady=(14, 0))
+            ctk.CTkButton(btn_frame, text="确定", font=("Microsoft YaHei UI", 11),
+                          fg_color="#F59E0B", hover_color="#E8900A",
+                          corner_radius=8, height=32, width=80,
+                          command=on_ok).pack(side="left", padx=(0, 8))
+            ctk.CTkButton(btn_frame, text="取消", font=("Microsoft YaHei UI", 11),
+                          fg_color="transparent", text_color="#7A6E5C",
+                          hover_color="#F5F0E8", corner_radius=8, height=32,
+                          command=on_cancel).pack(side="left")
 
             dialog.update_idletasks()
             dw = dialog.winfo_width()
@@ -478,7 +657,7 @@ class MediaDownloader:
                             f.write(chunk)
                             downloaded += len(chunk)
                             if total > 0:
-                                self.progress_var.set(downloaded / total * 100)
+                                self.progress_bar.set(downloaded / total)
                                 self.info_var.set(f"下载 ffmpeg... {downloaded / total * 100:.0f}%")
                 if self._cancel_flag:
                     os.unlink(tmp)
@@ -658,6 +837,74 @@ class MediaDownloader:
                 or "DPAPI" in err
                 or "Failed to decrypt" in err)
 
+    def _resolve_file_conflict(self, filepath):
+        """Check if file exists. If so, ask user to overwrite/rename/cancel.
+        Returns final path or None if cancelled."""
+        if not os.path.exists(filepath):
+            return filepath
+
+        result = [None]
+        event = threading.Event()
+
+        def show():
+            dlg = tk.Toplevel(self.root)
+            dlg.title("文件已存在")
+            dlg.transient(self.root)
+            dlg.grab_set()
+            dlg.resizable(False, False)
+            dlg.configure(bg="#FBF7F2")
+
+            f = tk.Frame(dlg, bg="#FBF7F2", padx=20, pady=20)
+            f.pack()
+
+            tk.Label(f, text="文件已存在，如何处理？", bg="#FBF7F2", fg="#3D3628",
+                     font=("Microsoft YaHei UI", 12, "bold")).pack(anchor="w")
+            tk.Label(f, text=os.path.basename(filepath), bg="#FBF7F2", fg="#7A6E5C",
+                     font=("Microsoft YaHei UI", 9)).pack(anchor="w", pady=(4, 14))
+
+            var = tk.StringVar(value="rename")
+
+            opts = tk.Frame(f, bg="#FBF7F2")
+            opts.pack(fill="x")
+            ttk.Radiobutton(opts, text="自动重命名（末尾加序号）", variable=var,
+                            value="rename").pack(anchor="w", pady=2)
+            ttk.Radiobutton(opts, text="覆盖原文件", variable=var,
+                            value="overwrite").pack(anchor="w", pady=2)
+
+            btns = tk.Frame(f, bg="#FBF7F2")
+            btns.pack(pady=(14, 0))
+            ctk.CTkButton(btns, text="确定", font=("Microsoft YaHei UI", 11),
+                          fg_color="#F59E0B", hover_color="#E8900A",
+                          corner_radius=8, height=34, width=80,
+                          command=lambda: [result.__setitem__(0, var.get()), dlg.destroy()]
+                          ).pack(side="left", padx=(0, 8))
+            ctk.CTkButton(btns, text="取消下载", font=("Microsoft YaHei UI", 11),
+                          fg_color="transparent", text_color="#E0554A",
+                          hover_color="#FBEBE9", corner_radius=8, height=34,
+                          command=dlg.destroy).pack(side="left")
+
+            dlg.update_idletasks()
+            dw, dh = dlg.winfo_width(), dlg.winfo_height()
+            px = self.root.winfo_x() + (self.root.winfo_width() - dw) // 2
+            py = self.root.winfo_y() + (self.root.winfo_height() - dh) // 2
+            dlg.geometry(f"+{px}+{py}")
+            dlg.wait_window()
+            event.set()
+
+        self.root.after(0, show)
+        event.wait()
+
+        if self._cancel_flag or result[0] is None:
+            return None
+        if result[0] == "overwrite":
+            return filepath
+        # auto-rename: find next available (1), (2), etc.
+        base, ext = os.path.splitext(filepath)
+        counter = 1
+        while os.path.exists(f"{base} ({counter}){ext}"):
+            counter += 1
+        return f"{base} ({counter}){ext}"
+
     def _download_direct(self, video_url, out_dir, title):
         """Download video directly from a URL with progress tracking."""
         # Sanitize: strip newlines, control chars, and filesystem-illegal characters
@@ -666,6 +913,9 @@ class MediaDownloader:
         safe_title = "".join(c for c in safe_title if c.isprintable())
         safe_title = safe_title.strip()[:100]
         filepath = os.path.join(out_dir, safe_title + ".mp4")
+        filepath = self._resolve_file_conflict(filepath)
+        if filepath is None:
+            raise Exception("用户取消")
 
         resp = requests.get(video_url, stream=True, timeout=60,
                             headers={"User-Agent": "Mozilla/5.0"})
@@ -682,11 +932,11 @@ class MediaDownloader:
                     downloaded += len(chunk)
                     if total > 0:
                         pct = downloaded / total * 100
-                        self.progress_var.set(pct)
+                        self.progress_bar.set(pct / 100.0)
                         speed = downloaded / 1024 / 1024  # rough
-                        self.info_var.set(f"下载中... {downloaded / (1024*1024):.1f}MB")
+                        self.info_var.set(f"下载中... {self._fmt_size(downloaded)} / {self._fmt_size(total) if total > 0 else '?'}")
 
-        self.progress_var.set(100)
+        self.progress_bar.set(1)
         return filepath
 
     def _is_douyin_url(self, url):
@@ -805,6 +1055,17 @@ class MediaDownloader:
                         "preferredcodec": "mp3",
                     }]
 
+                # Check for duplicate files before downloading
+                expected_ext = "mp3" if audio_only else "mp4"
+                safe_title = re.sub(r'[\\/*?:"<>|]', "_", title)[:100]
+                expected_path = os.path.join(out_dir, safe_title + "." + expected_ext)
+                final_path = self._resolve_file_conflict(expected_path)
+                if final_path is None:
+                    self.root.after(0, lambda: self._on_cancel())
+                    return
+                if final_path != expected_path:
+                    ydl_opts["outtmpl"] = os.path.join(out_dir, os.path.splitext(os.path.basename(final_path))[0] + ".%(ext)s")
+
                 self.root.after(0, lambda: self.log("开始下载..."))
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -865,7 +1126,7 @@ class MediaDownloader:
     def _on_complete(self):
         self._cleanup_cookies()
         self.is_downloading = False
-        self.dl_btn.configure(state="normal")
+        self.dl_btn.configure(text="开始下载", state="normal")
         self.cancel_btn.configure(state="disabled")
         self.info_var.set("完成！")
         self.log("下载完成，文件已保存到目标目录")
@@ -877,7 +1138,7 @@ class MediaDownloader:
     def _on_cancel(self):
         self._cleanup_cookies()
         self.is_downloading = False
-        self.dl_btn.configure(state="normal")
+        self.dl_btn.configure(text="开始下载", state="normal")
         self.cancel_btn.configure(state="disabled")
         self.info_var.set("已取消")
         self.log("下载已取消")
@@ -885,7 +1146,7 @@ class MediaDownloader:
     def _on_error(self, err, tb):
         self._cleanup_cookies()
         self.is_downloading = False
-        self.dl_btn.configure(state="normal")
+        self.dl_btn.configure(text="开始下载", state="normal")
         self.cancel_btn.configure(state="disabled")
         self.info_var.set("下载失败，查看下方日志")
         self.log(f"错误: {err}")
