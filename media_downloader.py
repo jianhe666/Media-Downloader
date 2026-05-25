@@ -75,8 +75,8 @@ class MediaDownloader:
         opts_frame.pack(fill="x", pady=(0, 6))
 
         self.cookie_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(opts_frame, text="使用浏览器 Cookie（抖音等需要登录的平台请勾选）",
-                        variable=self.cookie_var).pack(side="left")
+        tk.Checkbutton(opts_frame, text="使用浏览器 Cookie（抖音等需要登录的平台请勾选）",
+                       variable=self.cookie_var).pack(side="left")
 
         self.browser_var = tk.StringVar(value="edge")
         ttk.Radiobutton(opts_frame, text="Edge", variable=self.browser_var,
@@ -87,7 +87,7 @@ class MediaDownloader:
                         value="firefox").pack(side="left", padx=(4, 0))
 
         self.audio_only_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(opts_frame, text="仅音频", variable=self.audio_only_var).pack(side="right")
+        tk.Checkbutton(opts_frame, text="仅音频", variable=self.audio_only_var).pack(side="right")
 
         # Info
         self.info_var = tk.StringVar()

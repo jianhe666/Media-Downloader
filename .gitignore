@@ -6,3 +6,4 @@ __pycache__/
 ffmpeg/
 *.spec
 Media-Downloader-beta-V1.0.0.zip
+*.zip
