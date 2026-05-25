@@ -1,6 +1,8 @@
 build/
+dist/
 __pycache__/
 *.pyc
 .disclaimer_accepted
 ffmpeg/
 *.spec
+Media-Downloader-beta-V1.0.0.zip

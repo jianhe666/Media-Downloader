@@ -434,81 +434,80 @@ class MediaDownloader:
     # ---- End API parser ----
 
     def _ensure_ffmpeg(self):
-        """Ensure ffmpeg is available. Downloads from GitHub if necessary. Returns path or None."""
+        """Ensure ffmpeg is available. Returns path or None."""
         system_ffmpeg = shutil.which("ffmpeg")
         if system_ffmpeg:
             return system_ffmpeg
 
         if getattr(sys, 'frozen', False):
-            script_dir = os.path.dirname(sys.executable)
+            base_dir = os.path.dirname(sys.executable)
         else:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-        ffmpeg_dir = os.path.join(script_dir, "ffmpeg")
-        ffmpeg_exe = os.path.join(ffmpeg_dir, "ffmpeg.exe")
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Check next to exe/script
+        ffmpeg_exe = os.path.join(base_dir, "ffmpeg.exe")
         if os.path.exists(ffmpeg_exe):
             return ffmpeg_exe
 
-        self.log("  [提示] 首次使用需下载 ffmpeg（约 84MB），仅此一次...")
-        url = "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-lgpl-shared.zip"
-        tmp = os.path.join(tempfile.gettempdir(), "ffmpeg_temp.zip")
-
-        try:
-            session = requests.Session()
-            session.mount("https://", requests.adapters.HTTPAdapter(max_retries=3))
-
-            total = 0
-            downloaded = 0
-            with open(tmp, "wb") as f:
-                for attempt in range(3):
-                    headers = {}
-                    if downloaded > 0:
-                        headers["Range"] = f"bytes={downloaded}-"
-                    try:
-                        resp = session.get(url, stream=True, timeout=300, headers=headers)
-                        resp.raise_for_status()
-                        if total == 0:
-                            total = int(resp.headers.get("content-length", 0)) + downloaded
-                        for chunk in resp.iter_content(chunk_size=65536):
-                            if self._cancel_flag:
-                                break
-                            if chunk:
-                                f.write(chunk)
-                                downloaded += len(chunk)
-                                if total > 0:
-                                    self.info_var.set(f"下载 ffmpeg... {downloaded / total * 100:.0f}%")
-                        break
-                    except Exception:
-                        if attempt == 2:
-                            raise
-                        self.info_var.set("下载 ffmpeg... 重试中...")
-
-            if self._cancel_flag:
-                os.unlink(tmp)
-                return None
-
-            os.makedirs(ffmpeg_dir, exist_ok=True)
-            with zipfile.ZipFile(tmp, "r") as zf:
-                for name in zf.namelist():
-                    # Extract everything under bin/ to ffmpeg_dir
-                    if "/bin/" in name or name.startswith("bin/"):
-                        basename = os.path.basename(name)
-                        if basename:
-                            dest = os.path.join(ffmpeg_dir, basename)
-                            with zf.open(name) as src, open(dest, "wb") as dst:
-                                dst.write(src.read())
-
-            os.unlink(tmp)
-            self.log("  ffmpeg 就绪")
+        # Check ffmpeg/ subdirectory
+        ffmpeg_exe = os.path.join(base_dir, "ffmpeg", "ffmpeg.exe")
+        if os.path.exists(ffmpeg_exe):
             return ffmpeg_exe
 
-        except Exception as e:
-            self.log(f"  [警告] ffmpeg 下载失败: {e}")
-            if os.path.exists(tmp):
-                try:
+        # Download fallback — try mirror first, then GitHub
+        mirrors = [
+            "https://ghproxy.net/https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-lgpl-shared.zip",
+            "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-lgpl-shared.zip",
+        ]
+        tmp = os.path.join(tempfile.gettempdir(), "ffmpeg_temp.zip")
+        ffmpeg_dir = os.path.join(base_dir, "ffmpeg")
+
+        for url in mirrors:
+            try:
+                self.log(f"  [提示] 正在下载 ffmpeg...")
+                resp = requests.get(url, stream=True, timeout=60,
+                                    headers={"User-Agent": "Mozilla/5.0"})
+                resp.raise_for_status()
+                total = int(resp.headers.get("content-length", 0))
+                downloaded = 0
+                with open(tmp, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=65536):
+                        if self._cancel_flag:
+                            break
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total > 0:
+                                self.progress_var.set(downloaded / total * 100)
+                                self.info_var.set(f"下载 ffmpeg... {downloaded / total * 100:.0f}%")
+                if self._cancel_flag:
                     os.unlink(tmp)
-                except Exception:
-                    pass
-            return None
+                    return None
+
+                os.makedirs(ffmpeg_dir, exist_ok=True)
+                with zipfile.ZipFile(tmp, "r") as zf:
+                    for name in zf.namelist():
+                        if "/bin/" in name or name.startswith("bin/"):
+                            basename = os.path.basename(name)
+                            if basename:
+                                with zf.open(name) as src, open(os.path.join(ffmpeg_dir, basename), "wb") as dst:
+                                    dst.write(src.read())
+                os.unlink(tmp)
+                self.log("  ffmpeg 就绪")
+                return os.path.join(ffmpeg_dir, "ffmpeg.exe")
+
+            except Exception as e:
+                self.log(f"  [提示] 从 {url[:40]}... 下载失败: {e}")
+                if os.path.exists(tmp):
+                    try:
+                        os.unlink(tmp)
+                    except Exception:
+                        pass
+                continue
+
+        self.log("  [警告] ffmpeg 下载失败，无法合并视频音轨，画质将受限")
+        self.log("  [提示] 请手动将 ffmpeg.exe 放到程序同目录下")
+        return None
 
     def _extract_cookies_playwright(self, browser):
         """Use Playwright to extract cookies from a Chromium browser profile.
