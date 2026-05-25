@@ -41,7 +41,7 @@ class MediaDownloader:
             root.destroy()
             return
 
-        self.root.title("音视频下载器 beta V1.0.0")
+        self.root.title("音视频下载器 beta V1.0.1")
         self.root.geometry("650x480")
         self.root.resizable(True, True)
         self.root.minsize(500, 400)
